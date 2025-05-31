@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 mod cli;
+mod model;
 
 use clap::Parser;
 use cli::Cli;
