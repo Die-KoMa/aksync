@@ -33,7 +33,7 @@ fn main() -> Result<(), Error> {
 
     Man::new(cmd).render(&mut file)?;
 
-    println!("cargo:warning=completion file is generated: {outdir:?}");
+    println!("cargo:infog=completion files & manpages are generated: {outdir:?}");
 
     Ok(())
 }
