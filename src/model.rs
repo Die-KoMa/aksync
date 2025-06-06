@@ -8,21 +8,27 @@ pub mod aktool {
     use std::collections::HashSet;
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct EventId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct AKId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct CategoryId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct OwnerId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct TypeId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+    #[serde(transparent)]
     pub struct RequirementId(u64);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -49,6 +55,26 @@ pub mod aktool {
         prerequisites: HashSet<AKId>,
     }
 
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    pub struct Category {
+        id: CategoryId,
+        name: String,
+        color: String,
+        description: String,
+        present_by_default: bool,
+        event: EventId,
+    }
+
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    pub struct Owner {
+        id: OwnerId,
+        name: String,
+        slug: String,
+        institution: String,
+        link: String,
+        event: EventId,
+    }
+
     mod test {
         use super::*;
         use test_log::test;
@@ -56,12 +82,32 @@ pub mod aktool {
         #[test]
         fn parse_ak() {
             let result = serde_json::from_str::<AK>(
-                r#"{"id":1289,"name":"Tarifflucht und Massenentlassung","short_name":"Tarifflucht","description":"An Universitäten sind viele Verwaltungskräfte rechtswidrig befristet und vom Tarifvertrag und der Personalvertretung ausgeschlossen.\r\nGewerkschaften versuchen dagegen vorzugehen, Unis versuchen gegen Gewerkschaften vorzugehen: In Dresden hat die TU allein zum Jahreswechsel 70 SHK/WHK defacto-entlassen.\r\nAuch in Passau kam es zu ähnlichen Vorgängen.\r\nWas kann man dagegen tun? Wie bekommt man die Unileitung dazu, Anwaltspost zu lesen? Und was passiert, wenn man Elon Musk auf Whish bestellt und zum Uni-Kanzler macht?","link":"https://wiki.kif.rocks/wiki/KIF530:Tarifflucht_und_Massenentlassung","protocol_link":"","reso":true,"present":null,"notes":"","interest":-1,"interest_counter":0,"include_in_export":true,"category":64,"track":null,"event":16,"owners":[764],"types":[1,2],"requirements":[],"conflicts":[1242,1250,1271,1277,1280],"prerequisites":[]}"#,
+                r#"{"id":1289,"name":"Testwursttesting","short_name":"Testwurst","description":"Wir testen das Verspeisen leckerer Testwürste","link":"https://de.komapedia.org/wiki/KoMa_92/AK_Testwurst","protocol_link":"","reso":true,"present":null,"notes":"","interest":-1,"interest_counter":0,"include_in_export":true,"category":64,"track":null,"event":16,"owners":[1312],"types":[1,2],"requirements":[],"conflicts":[1242,1250,1271,1277,1280],"prerequisites":[]}"#,
             );
 
             log::debug!("{result:?}");
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    fn parse_category() {
+        let result = serde_json::from_str::<Category>(
+            r##"{"id":64,"name":"Inhalt/Arbeit","color":"#487eb0","description":"Inhalt- und Arbeits-AKs: Für eher ernsthafte und inhaltliche (HoPo, FS-Arbeit, Mathematik, Informatik...) Arbeitskreise ist diese Kategorie da.","present_by_default":false,"event":16}"##,
+        );
+
+        log::debug!("{result:?}");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_owner() {
+        let result = serde_json::from_str::<Owner>(
+            r#"{"id":1312,"name":"mmarx","slug":"mmarx","institution":"TU Dresden","link":"https://de.komapedia.org/wiki/Benutzer:Mmarx","event":16}"#,
+        );
+
+        log::debug!("{result:?}");
+        assert!(result.is_ok());
     }
 }
 
