@@ -275,6 +275,7 @@
               inherit (pkgs)
                 cargo-license
                 cargo-audit
+                cargo-update
                 reuse
                 commitizen
                 rust-analyzer
