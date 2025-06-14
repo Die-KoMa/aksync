@@ -24,10 +24,12 @@ pub struct AKToolApi {
     iri: String,
 }
 
+#[derive(Debug)]
 enum Endpoint {
     AK,
     Category,
     Owner,
+    Slot,
 }
 
 impl Endpoint {
@@ -38,11 +40,16 @@ impl Endpoint {
 
 impl Display for Endpoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Endpoint::AK => write!(f, "ak"),
-            Endpoint::Category => write!(f, "akcategory"),
-            Endpoint::Owner => write!(f, "akowner"),
-        }
+        write!(
+            f,
+            "{}",
+            match self {
+                Endpoint::AK => "ak",
+                Endpoint::Category => "akcategory",
+                Endpoint::Owner => "akowner",
+                Endpoint::Slot => "akslot",
+            }
+        )
     }
 }
 
@@ -80,6 +87,11 @@ impl AKToolApi {
             .await?
             .json::<Vec<aktool::AK>>()
             .await?;
+        let slots = self
+            .get(Endpoint::Slot)
+            .await?
+            .json::<Vec<aktool::Slot>>()
+            .await?;
 
         let mut events = HashSet::new();
         let mut categories_by_event = HashMap::<_, Vec<_>>::new();
@@ -112,6 +124,16 @@ impl AKToolApi {
                 .or_insert_with(|| vec![ak]);
         }
 
+        let mut slots_by_event = HashMap::<_, Vec<_>>::new();
+        for slot in slots {
+            let event = slot.event;
+            events.insert(event);
+            slots_by_event
+                .entry(event)
+                .and_modify(|slots| slots.push(slot.clone()))
+                .or_insert_with(|| vec![slot]);
+        }
+
         events
             .into_iter()
             .map(|id| {
@@ -131,6 +153,13 @@ impl AKToolApi {
                     .ok_or(anyhow!("unknown event {id:?}"))?
                 {
                     event.add_ak(ak.clone())?;
+                }
+
+                for slot in slots_by_event
+                    .get(&id)
+                    .ok_or(anyhow!("unknown event {id:?}"))?
+                {
+                    event.add_slot(slot)?;
                 }
 
                 Ok((id, event))

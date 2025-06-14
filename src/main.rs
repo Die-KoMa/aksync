@@ -5,6 +5,7 @@
 
 mod aktool;
 mod cli;
+mod komapedia;
 mod model;
 
 use anyhow::Result;
@@ -31,7 +32,15 @@ async fn main() -> Result<()> {
     let aktool_api = AKToolApi::new(AKTOOL_ENDPOINT.to_string()).expect("should succeed");
     let events = aktool_api.events().await?;
 
-    log::debug!("{events:?}");
+    for (id, ref event) in events {
+        log::info!("processing event {id:?}");
+
+        for (&akid, ak) in event.aks() {
+            if ak.is_koma() {
+                log::info!("AK {akid:?}:\n\n{ak}");
+            }
+        }
+    }
 
     Ok(())
 }
