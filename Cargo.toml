@@ -18,6 +18,7 @@ clap = { version = "4.5.38", features = ["derive"] }
 env_logger = "0.11.8"
 itertools = "0.14.0"
 log = "0.4.27"
+mediawiki = "0.3.1"
 reqwest = { version = "0.12.20", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"

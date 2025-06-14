@@ -14,7 +14,7 @@ use cli::Cli;
 use env_logger::Env;
 
 use aktool::AKToolApi;
-use komapedia::wikipage;
+use komapedia::{update_event, wikipage};
 
 pub(crate) const AKSYNC_USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
@@ -31,14 +31,15 @@ async fn main() -> Result<()> {
     let _args = Cli::parse();
 
     let aktool_api = AKToolApi::new(AKTOOL_ENDPOINT.to_string()).expect("should succeed");
+
+    log::info!("querying aktool");
+
     let events = aktool_api.events().await?;
 
     for (id, ref event) in events {
         log::info!("processing event {id:?}");
-
-        log::debug!("{}", event.wikitext());
-
-        log::info!("{}", wikipage(id)?);
+        update_event(id, event).await?;
+        log::info!("updated KoMapedia page {}", wikipage(id)?);
     }
 
     Ok(())
