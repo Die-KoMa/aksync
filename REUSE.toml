@@ -21,3 +21,8 @@ SPDX-License-Identifier = "EUPL-1.2"
 path = "Cargo.lock"
 SPDX-FileCopyrightText = "© 2025 Maximilian Marx"
 SPDX-License-Identifier = "EUPL-1.2"
+
+[[annotations]]
+path = ".github/workflows/ci.yml"
+SPDX-FileCopyrightText = "© 2025 Maximilian Marx"
+SPDX-License-Identifier = "EUPL-1.2"
