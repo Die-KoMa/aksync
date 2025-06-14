@@ -10,6 +10,7 @@ pub mod aktool {
     pub(crate) const DEFAULT_SLOT_IN_HOURS: f64 = 1.0;
 
     const TYPE_KOMA: TypeId = TypeId(2);
+    pub(crate) const EVENT_KOMA92: EventId = EventId(16);
     const CATEGORY_WORK: CategoryId = CategoryId(64);
     const CATEGORY_META: CategoryId = CategoryId(65);
     const CATEGORY_CULTURE: CategoryId = CategoryId(66);
@@ -21,35 +22,35 @@ pub mod aktool {
     const CATEGORIES_TALK: &[CategoryId] = &[CATEGORY_FRAMING];
     const CATEGORIES_FUN: &[CategoryId] = &[CATEGORY_FRAMING, CATEGORY_CULTURE];
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct EventId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct AKId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct CategoryId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct OwnerId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct TypeId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct RequirementId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct SlotId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct RoomId(u64);
 
@@ -217,13 +218,14 @@ pub mod aktool {
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
+    iter::once,
 };
 
 pub use aktool::{AKId, CategoryId, EventId, OwnerId};
 use anyhow::{Result, anyhow};
-use itertools::Itertools;
+use itertools::{Itertools, chain};
 
-use crate::komapedia::{AKSYNC_TEMPLATE, escape, format_link};
+use crate::komapedia::{AKSYNC_AK_TEMPLATE, AKSYNC_GENERATED_TEMPLATE, escape, format_link};
 
 #[derive(Debug)]
 pub struct Event {
@@ -254,7 +256,9 @@ impl Event {
     }
 
     pub(crate) fn aks(&self) -> impl Iterator<Item = (&AKId, &AK)> {
-        self.aks.iter()
+        self.aks
+            .iter()
+            .sorted_by(|&(id, _), &(other, _)| Ord::cmp(id, other))
     }
 
     pub(crate) fn add_ak(&mut self, ak: aktool::AK) -> Result<&mut Self> {
@@ -286,6 +290,19 @@ impl Event {
             .duration += slot.duration * aktool::DEFAULT_SLOT_IN_HOURS;
 
         Ok(self)
+    }
+
+    pub(crate) fn wikitext(&self) -> String {
+        Itertools::intersperse(
+            chain(
+                once(format!("{{{{{AKSYNC_GENERATED_TEMPLATE}}}}}")),
+                self.aks()
+                    .filter(|(_, ak)| ak.is_koma())
+                    .map(|(_, ak)| ak.to_string()),
+            ),
+            "\n".to_string(),
+        )
+        .collect()
     }
 }
 
@@ -425,7 +442,7 @@ impl Display for AK {
             };
         }
 
-        writeln!(f, "{{{{{AKSYNC_TEMPLATE}")?;
+        writeln!(f, "{{{{{AKSYNC_AK_TEMPLATE}")?;
 
         attribute!("Name" => escape(&self.name));
 

@@ -14,6 +14,7 @@ use cli::Cli;
 use env_logger::Env;
 
 use aktool::AKToolApi;
+use komapedia::wikipage;
 
 pub(crate) const AKSYNC_USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
@@ -35,11 +36,9 @@ async fn main() -> Result<()> {
     for (id, ref event) in events {
         log::info!("processing event {id:?}");
 
-        for (&akid, ak) in event.aks() {
-            if ak.is_koma() {
-                log::info!("AK {akid:?}:\n\n{ak}");
-            }
-        }
+        log::debug!("{}", event.wikitext());
+
+        log::info!("{}", wikipage(id)?);
     }
 
     Ok(())

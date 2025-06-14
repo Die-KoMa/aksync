@@ -3,6 +3,10 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
+use anyhow::{Result, anyhow};
+
+use crate::model::{EventId, aktool::EVENT_KOMA92};
+
 const KOMAPEDIA_DOMAINS: &[&str] = &[
     "https://de.komapedia.org",
     "https://komapedia.org",
@@ -10,8 +14,11 @@ const KOMAPEDIA_DOMAINS: &[&str] = &[
 ];
 
 const KOMAPEDIA_PAGE_PREFIXES: &[&str] = &["/wiki/", "/index.php?title="];
+const KOMAPEDIA_IMPORT_SUBPAGE: &str = "Importiert_aus_aktool";
 
-pub(crate) const AKSYNC_TEMPLATE: &str = "KoMa Externer AK aus aktool";
+pub(crate) const KOMAPEDIA_EVENTS: &[(EventId, &str)] = &[(EVENT_KOMA92, "KoMa_92")];
+pub(crate) const AKSYNC_AK_TEMPLATE: &str = "KoMa Externer AK aus aktool";
+pub(crate) const AKSYNC_GENERATED_TEMPLATE: &str = "Seite automatisch erzeugt von aksync";
 
 fn is_pagelink(target: &str) -> Option<String> {
     for &domain in KOMAPEDIA_DOMAINS {
@@ -49,4 +56,11 @@ pub(crate) fn escape(text: &str) -> String {
     let result = result.replace("}}", "}&ZeroWidthSpace;}");
     let result = result.replace('|', "{{!}}");
     result.replace('=', "{{=}}")
+}
+
+pub(crate) fn wikipage(event: EventId) -> Result<String> {
+    KOMAPEDIA_EVENTS
+        .iter()
+        .find_map(|&(id, page)| (id == event).then(|| format!("{page}/{KOMAPEDIA_IMPORT_SUBPAGE}")))
+        .ok_or(anyhow!("unknown event {event:?}"))
 }
