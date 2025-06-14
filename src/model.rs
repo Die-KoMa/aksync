@@ -168,6 +168,7 @@ impl Event {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Category {
     name: String,
@@ -183,6 +184,7 @@ impl From<aktool::Category> for Category {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Owner {
     name: String,
@@ -200,6 +202,7 @@ impl From<aktool::Owner> for Owner {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct AK {
     name: String,
