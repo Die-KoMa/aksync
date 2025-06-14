@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 [bans]
-multiple-versions = "deny"
+multiple-versions = "warn"
 wildcards = "deny"
 
 [licenses]
 unused-allowed-license = "warn"
-allow = ["EUPL-1.2", "MIT", "ISC", "Apache-2.0", "Unicode-3.0", "BSD-3-Clause"]
+allow = ["EUPL-1.2", "MIT", "Apache-2.0", "Unicode-3.0", "BSD-3-Clause"]
