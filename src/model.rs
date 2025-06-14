@@ -31,7 +31,7 @@ pub mod aktool {
     #[serde(transparent)]
     pub struct RequirementId(u64);
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
     pub struct AK {
         pub(crate) id: AKId,
         pub(crate) name: String,
@@ -55,7 +55,7 @@ pub mod aktool {
         pub(crate) prerequisites: HashSet<AKId>,
     }
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
     pub struct Category {
         pub(crate) id: CategoryId,
         pub(crate) name: String,
@@ -65,7 +65,7 @@ pub mod aktool {
         pub(crate) event: EventId,
     }
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
     pub struct Owner {
         pub(crate) id: OwnerId,
         pub(crate) name: String,
@@ -118,14 +118,14 @@ pub use aktool::{AKId, CategoryId, EventId, OwnerId};
 use anyhow::{Result, anyhow};
 
 #[derive(Debug)]
-pub struct Event<'event> {
+pub struct Event {
     owners: HashMap<OwnerId, Owner>,
     categories: HashMap<CategoryId, Category>,
-    aks: HashMap<AKId, AK<'event>>,
+    aks: HashMap<AKId, AK>,
 }
 
-impl<'event> Event<'event> {
-    fn new<C, O>(categories: C, owners: O) -> Self
+impl Event {
+    pub(crate) fn new<C, O>(categories: C, owners: O) -> Self
     where
         C: IntoIterator<Item = aktool::Category>,
         O: IntoIterator<Item = aktool::Owner>,
@@ -145,7 +145,7 @@ impl<'event> Event<'event> {
         }
     }
 
-    fn add_ak(&'event mut self, id: AKId, ak: aktool::AK) -> Result<()> {
+    pub(crate) fn add_ak(&mut self, ak: aktool::AK) -> Result<&mut Self> {
         let category = self
             .categories
             .get(&ak.category)
@@ -157,16 +157,18 @@ impl<'event> Event<'event> {
                 self.owners
                     .get(owner_id)
                     .ok_or_else(|| anyhow!("unknown owner {:?}", owner_id))
+                    .cloned()
             })
             .collect::<Result<_>>()?;
 
-        let ak = AK::from_aktool(ak, category, owners);
+        let id = ak.id;
+        let ak = AK::from_aktool(ak, category.clone(), owners);
         let _ = self.aks.insert(id, ak);
-        Ok(())
+        Ok(self)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Category {
     name: String,
     description: String,
@@ -181,7 +183,7 @@ impl From<aktool::Category> for Category {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Owner {
     name: String,
     institution: String,
@@ -198,20 +200,16 @@ impl From<aktool::Owner> for Owner {
     }
 }
 
-#[derive(Debug)]
-pub struct AK<'event> {
+#[derive(Debug, Clone)]
+pub struct AK {
     name: String,
     description: String,
-    owners: HashSet<&'event Owner>,
-    category: &'event Category,
+    owners: HashSet<Owner>,
+    category: Category,
 }
 
-impl<'event> AK<'event> {
-    fn from_aktool(
-        ak: aktool::AK,
-        category: &'event Category,
-        owners: HashSet<&'event Owner>,
-    ) -> Self {
+impl AK {
+    pub(crate) fn from_aktool(ak: aktool::AK, category: Category, owners: HashSet<Owner>) -> Self {
         Self {
             name: ak.name,
             description: ak.description,
