@@ -218,14 +218,18 @@ pub mod aktool {
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
-    iter::once,
 };
 
 pub use aktool::{AKId, CategoryId, EventId, OwnerId};
 use anyhow::{Result, anyhow};
-use itertools::{Itertools, chain};
+use itertools::Itertools;
 
-use crate::komapedia::{AKSYNC_AK_TEMPLATE, AKSYNC_GENERATED_TEMPLATE, escape, format_link};
+use crate::{
+    komapedia::{
+        AKSYNC_AK_TEMPLATE, AKSYNC_GENERATED_TEMPLATE, KOMAPEDIA_AK_PREFIX, escape, format_link,
+    },
+    wikipage,
+};
 
 #[derive(Debug)]
 pub struct Event {
@@ -291,19 +295,6 @@ impl Event {
 
         Ok(self)
     }
-
-    pub(crate) fn wikitext(&self) -> String {
-        Itertools::intersperse(
-            chain(
-                once(format!("{{{{{AKSYNC_GENERATED_TEMPLATE}}}}}")),
-                self.aks()
-                    .filter(|(_, ak)| ak.is_koma())
-                    .map(|(_, ak)| ak.to_string()),
-            ),
-            "\n".to_string(),
-        )
-        .collect()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -358,6 +349,7 @@ impl Display for Owner {
 #[derive(Debug, Clone)]
 pub struct AK {
     name: String,
+    short_name: String,
     description: String,
     result: String,
     owners: HashSet<Owner>,
@@ -377,6 +369,14 @@ pub struct AK {
 
 impl AK {
     pub(crate) fn from_aktool(ak: aktool::AK, category: Category, owners: HashSet<Owner>) -> Self {
+        fn with_prefix(name: String) -> String {
+            if name.starts_with(KOMAPEDIA_AK_PREFIX) {
+                name
+            } else {
+                format!("{KOMAPEDIA_AK_PREFIX}{name}")
+            }
+        }
+
         let exchange = ak.is_exchange();
         let input = ak.is_input();
         let output = ak.is_output();
@@ -386,7 +386,8 @@ impl AK {
         let koma = ak.is_koma();
 
         Self {
-            name: ak.name,
+            name: with_prefix(ak.name),
+            short_name: with_prefix(ak.short_name),
             description: ak.description,
             result: ak.protocol_link,
             category,
@@ -406,6 +407,18 @@ impl AK {
 
     pub(crate) fn is_koma(&self) -> bool {
         self.koma
+    }
+
+    pub(crate) fn wikipage(&self, event: EventId) -> Result<String> {
+        Ok(format!("{}/{}", wikipage(event)?, self.short_name))
+    }
+
+    pub(crate) fn wikitext(&self) -> String {
+        format!("{{{{{AKSYNC_GENERATED_TEMPLATE}}}}}\n{self}")
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
     }
 
     fn format_type(&self) -> String {

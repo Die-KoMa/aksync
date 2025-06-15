@@ -5,11 +5,14 @@
 
 use std::env;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use mediawiki::Api;
 use serde_json::Value;
 
-use crate::model::{Event, EventId, aktool::EVENT_KOMA92};
+use crate::{
+    AKSYNC_USER_AGENT,
+    model::{AK, Event, EventId, aktool::EVENT_KOMA92},
+};
 
 const KOMAPEDIA_DOMAINS: &[&str] = &[
     "https://de.komapedia.org",
@@ -21,8 +24,8 @@ const KOMAPEDIA_ENDPOINT: &str = "https://de.komapedia.org/api.php";
 const KOMAPEDIA_BOT_USERNAME: &str = "AKsync";
 
 const KOMAPEDIA_PAGE_PREFIXES: &[&str] = &["/wiki/", "/index.php?title="];
-const KOMAPEDIA_IMPORT_SUBPAGE: &str = "Importiert_aus_aktool";
 
+pub(crate) const KOMAPEDIA_AK_PREFIX: &str = "AK ";
 pub(crate) const KOMAPEDIA_EVENTS: &[(EventId, &str)] = &[(EVENT_KOMA92, "KoMa_92")];
 pub(crate) const AKSYNC_AK_TEMPLATE: &str = "KoMa Externer AK aus aktool";
 pub(crate) const AKSYNC_GENERATED_TEMPLATE: &str = "Seite automatisch erzeugt von aksync";
@@ -69,25 +72,54 @@ pub(crate) fn escape(text: &str) -> String {
 pub(crate) fn wikipage(event: EventId) -> Result<String> {
     KOMAPEDIA_EVENTS
         .iter()
-        .find_map(|&(id, page)| (id == event).then(|| format!("{page}/{KOMAPEDIA_IMPORT_SUBPAGE}")))
+        .find_map(|&(id, page)| (id == event).then(|| page.to_string()))
         .ok_or(anyhow!("unknown event {event:?}"))
 }
 
-pub(crate) async fn update_event(id: EventId, event: &Event) -> Result<Value> {
-    let mut api = Api::new(KOMAPEDIA_ENDPOINT).await?;
-    api.login(KOMAPEDIA_BOT_USERNAME, &env::var("AKSYNC_BOT_PASSWORD")?)
-        .await?;
+pub(crate) async fn update_ak(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
     let token = api.get_edit_token().await?;
-
     let parameters = api.params_into(&[
         ("action", "edit"),
-        ("title", &wikipage(id)?),
-        ("text", &event.wikitext()),
+        ("title", &ak.wikipage(event)?),
+        ("text", &ak.wikitext()),
         ("summary", AKSYNC_SUMMARY),
         ("bot", "true"),
         ("watchlist", "unwatch"),
         ("token", &token),
     ]);
 
-    Ok(api.post_query_api_json(&parameters).await?)
+    log::debug!("API request:\n{parameters:#?}");
+
+    let result = api.post_query_api_json(&parameters).await?;
+
+    if let Value::Object(map) = result {
+        if let Some(Value::Object(err)) = map.get("error") {
+            bail!(
+                "got error {}: {}",
+                err.get("code")
+                    .unwrap_or(&Value::String("<unknown>".to_string()))
+                    .to_string(),
+                err.get("info")
+                    .unwrap_or(&Value::String(Default::default()))
+            )
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn update_event(id: EventId, event: &Event) -> Result<()> {
+    let mut api = Api::new(KOMAPEDIA_ENDPOINT).await?;
+    api.set_user_agent(AKSYNC_USER_AGENT);
+    api.login(KOMAPEDIA_BOT_USERNAME, &env::var("AKSYNC_BOT_PASSWORD")?)
+        .await?;
+
+    for (_, ak) in event.aks() {
+        if ak.is_koma() {
+            log::info!("processing {} ({})", ak.name(), ak.wikipage(id)?);
+            update_ak(&mut api, id, ak).await?;
+        }
+    }
+
+    Ok(())
 }

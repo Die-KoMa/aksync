@@ -37,9 +37,10 @@ async fn main() -> Result<()> {
     let events = aktool_api.events().await?;
 
     for (id, ref event) in events {
-        log::info!("processing event {id:?}");
+        let wikipage = wikipage(id)?;
+        log::info!("processing event {id:?} ({wikipage})");
         update_event(id, event).await?;
-        log::info!("updated KoMapedia page {}", wikipage(id)?);
+        log::info!("updated AKs for KoMapedia page {wikipage}");
     }
 
     Ok(())
