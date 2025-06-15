@@ -67,6 +67,10 @@
           };
       };
 
+      nixosModules = {
+        aksync = import ./nix/module.nix;
+      };
+
       outputsBuilder =
         channels:
         let
@@ -286,7 +290,6 @@
           };
 
           formatter = treefmt.config.build.wrapper;
-
         };
     };
 }
