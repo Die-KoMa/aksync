@@ -6,7 +6,7 @@
   description = "import AK proposals from the aktool into KoMapedia";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     utils.url = "github:gytis-ivaskevicius/flake-utils-plus";
 
     rust-overlay = {
@@ -242,6 +242,10 @@
                   editorconfig-checker = {
                     enable = true;
                     excludes = [ ''^LICENSES/.*\.txt$'' ];
+                  };
+                  shellcheck = {
+                    enable = true;
+                    excludes = [ "\\.envrc" ];
                   };
                 };
               };
