@@ -34,7 +34,7 @@ footer = """
 """
 trim = true
 postprocessors = [
-  { pattern = '<REPO>', replace = "https://github.com/die-koma/aksync" },
+  { pattern = '<REPO>', replace = "https://github.com/Die-KoMa/aksync" },
 ]
 
 [git]

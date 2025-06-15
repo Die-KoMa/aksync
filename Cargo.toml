@@ -6,7 +6,7 @@
 [package]
 name = "aksync"
 description = "import AK proposals from the aktool into KoMapedia"
-homepage = "https://github.com/die-koma/aksync"
+homepage = "https://github.com/Die-KoMa/aksync"
 version = "0.1.0"
 edition = "2024"
 license = "EUPL-1.2"
