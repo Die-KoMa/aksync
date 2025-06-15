@@ -9,12 +9,12 @@ pub mod aktool {
 
     pub(crate) const DEFAULT_SLOT_IN_HOURS: f64 = 1.0;
 
-    const TYPE_KOMA: TypeId = TypeId(2);
+    pub(crate) const TYPE_KOMA: TypeId = TypeId(2);
     pub(crate) const EVENT_KOMA92: EventId = EventId(16);
-    const CATEGORY_WORK: CategoryId = CategoryId(64);
-    const CATEGORY_META: CategoryId = CategoryId(65);
-    const CATEGORY_CULTURE: CategoryId = CategoryId(66);
-    const CATEGORY_FRAMING: CategoryId = CategoryId(67);
+    pub(crate) const CATEGORY_WORK: CategoryId = CategoryId(64);
+    pub(crate) const CATEGORY_META: CategoryId = CategoryId(65);
+    pub(crate) const CATEGORY_CULTURE: CategoryId = CategoryId(66);
+    pub(crate) const CATEGORY_FRAMING: CategoryId = CategoryId(67);
 
     const CATEGORIES_EXCHANGE: &[CategoryId] = &[CATEGORY_CULTURE, CATEGORY_META];
     const CATEGORIES_INPUT: &[CategoryId] = &[CATEGORY_CULTURE, CATEGORY_WORK];
@@ -227,6 +227,7 @@ use itertools::Itertools;
 use crate::{
     komapedia::{
         AKSYNC_AK_TEMPLATE, AKSYNC_GENERATED_TEMPLATE, KOMAPEDIA_AK_PREFIX, escape, format_link,
+        is_subpage,
     },
     wikipage,
 };
@@ -365,6 +366,7 @@ pub struct AK {
     fun: bool,
 
     koma: bool,
+    event: EventId,
 }
 
 impl AK {
@@ -402,6 +404,7 @@ impl AK {
             fun,
 
             koma,
+            event: ak.event,
         }
     }
 
@@ -445,6 +448,13 @@ impl AK {
         )
         .collect()
     }
+
+    fn format_result(&self, event: EventId) -> String {
+        match is_subpage(&self.result, event, self) {
+            None => escape(&self.result),
+            Some(subpage) => format!("{{{{/{subpage}}}}}"),
+        }
+    }
 }
 
 impl Display for AK {
@@ -476,7 +486,7 @@ impl Display for AK {
         }
 
         if !self.result.is_empty() {
-            attribute!("Ergebnis" => escape(&self.result));
+            attribute!("Ergebnis" => self.format_result(self.event));
         }
 
         writeln!(f, "}}}}")

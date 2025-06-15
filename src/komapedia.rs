@@ -47,6 +47,12 @@ fn is_pagelink(target: &str) -> Option<String> {
     None
 }
 
+pub(crate) fn is_subpage(target: &str, event: EventId, ak: &AK) -> Option<String> {
+    let prefix = format!("{}/", ak.wikipage(event).ok()?).replace(' ', "_");
+
+    is_pagelink(target).and_then(|t| t.strip_prefix(&prefix).map(|t| t.to_string()))
+}
+
 pub(crate) fn format_link(label: String, target: &Option<String>) -> String {
     match target {
         Some(link) => {
@@ -128,5 +134,38 @@ fn bot_password_from_env() -> Result<String> {
     match env::var("AKSYNC_BOT_PASSWORD_FILE") {
         Ok(path) => Ok(read_to_string(path)?.trim().to_string()),
         Err(_) => Ok(env::var("AKSYNC_BOT_PASSWORD")?),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    use test_log::test;
+
+    use crate::{
+        komapedia::is_subpage,
+        model::{
+            AK,
+            aktool::{self, EVENT_KOMA92},
+        },
+    };
+
+    #[test]
+    fn subpage() {
+        let ak =
+    AK::from_aktool(serde_json::from_str::<aktool::AK>(
+    r#"{"id":1305,"name":"IT-Infrastruktur","short_name":"IT-Infrastruktur","description":"Test","link":"https://wiki.kif.rocks/wiki/KIF530:IT-Infrastruktur","protocol_link":"https://de.komapedia.org/wiki/KoMa_92/AK_IT-Infrastruktur/Ergebnis","reso":false,"present":null,"notes":"","interest":-1,"interest_counter":0,"include_in_export":true,"category":65,"track":null,"event":16,"owners":[],"types":[2],"requirements":[49],"conflicts":[],"prerequisites":[]}"#).unwrap(),
+    serde_json::from_str::<aktool::Category>(
+    r##"{"id":64,"name":"Inhalt/Arbeit","color":"#487eb0","description":"","present_by_default":false,"event":16}"##,
+    ).unwrap().into(), HashSet::new(), );
+        assert_eq!(
+            is_subpage(
+                "https://de.komapedia.org/wiki/KoMa_92/AK_IT-Infrastruktur/Ergebnis",
+                EVENT_KOMA92,
+                &ak
+            ),
+            Some("Ergebnis".to_string())
+        );
     }
 }
