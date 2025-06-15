@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-use std::env;
+use std::{env, fs::read_to_string};
 
 use anyhow::{Result, anyhow, bail};
 use mediawiki::Api;
@@ -111,7 +111,7 @@ pub(crate) async fn update_ak(api: &mut Api, event: EventId, ak: &AK) -> Result<
 pub(crate) async fn update_event(id: EventId, event: &Event) -> Result<()> {
     let mut api = Api::new(KOMAPEDIA_ENDPOINT).await?;
     api.set_user_agent(AKSYNC_USER_AGENT);
-    api.login(KOMAPEDIA_BOT_USERNAME, &env::var("AKSYNC_BOT_PASSWORD")?)
+    api.login(KOMAPEDIA_BOT_USERNAME, &bot_password_from_env()?)
         .await?;
 
     for (_, ak) in event.aks() {
@@ -122,4 +122,11 @@ pub(crate) async fn update_event(id: EventId, event: &Event) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn bot_password_from_env() -> Result<String> {
+    match env::var("AKSYNC_BOT_PASSWORD_FILE") {
+        Ok(path) => Ok(read_to_string(path)?.trim().to_string()),
+        Err(_) => Ok(env::var("AKSYNC_BOT_PASSWORD")?),
+    }
 }

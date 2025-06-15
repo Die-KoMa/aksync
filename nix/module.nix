@@ -51,7 +51,10 @@ in
             ExecStart = "${lib.getExe pkgs.aksync}";
             Type = "oneshot";
             LoadCredential = [
-              "AKSYNC_BOT_PASSWORD:${cfg.passwordFile}"
+              "aksync-bot-password:${cfg.passwordFile}"
+            ];
+            Environment = [
+              "AKSYNC_BOT_PASSWORD_FILE=%d/aksync-bot-password"
             ];
           };
         };
@@ -61,6 +64,7 @@ in
             OnCalendar = cfg.onCalendar;
             Unit = "aksync.service";
           };
+          wantedBy = [ "timers.target" ];
         };
       };
     };
