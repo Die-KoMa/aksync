@@ -427,7 +427,11 @@ impl AK {
     }
 
     pub(crate) fn wikipage(&self, event: EventId) -> Result<String> {
-        Ok(format!("{}/{}", wikipage(event)?, self.short_name))
+        Ok(format!(
+            "{}/{}",
+            wikipage(event)?,
+            self.short_name.replace(' ', "_")
+        ))
     }
 
     pub(crate) fn wikitext(&self) -> String {
@@ -436,6 +440,10 @@ impl AK {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(crate) fn semantic_query(&self, event: EventId) -> String {
+        format!("[[Aktool event::{event}]] [[Aktool id::{}]]", self.id)
     }
 
     fn format_type(&self) -> String {

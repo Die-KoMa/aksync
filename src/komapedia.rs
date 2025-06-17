@@ -30,6 +30,7 @@ pub(crate) const KOMAPEDIA_EVENTS: &[(EventId, &str)] = &[(EVENT_KOMA92, "KoMa_9
 pub(crate) const AKSYNC_AK_TEMPLATE: &str = "KoMa Externer AK aus aktool";
 pub(crate) const AKSYNC_GENERATED_TEMPLATE: &str = "Seite automatisch erzeugt von aksync";
 pub(crate) const AKSYNC_SUMMARY: &str = "AK-Liste aus aktool importiert";
+pub(crate) const AKSYNC_DELETE_SUMMARY: &str = "AK wurde in aktool gelöscht";
 
 fn is_pagelink(target: &str) -> Option<String> {
     for &domain in KOMAPEDIA_DOMAINS {
@@ -82,7 +83,60 @@ pub(crate) fn wikipage(event: EventId) -> Result<String> {
         .ok_or(anyhow!("unknown event {event:?}"))
 }
 
+async fn delete_old_pages(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
+    let parameters = api.params_into(&[
+        ("action", "ask"),
+        ("query", &ak.semantic_query(event)),
+        ("formatversion", "2"),
+    ]);
+
+    log::debug!("API request:\n{parameters:#?}");
+
+    let result = api.get_query_api_json(&parameters).await?;
+    log::debug!("{result:#?}");
+    if let Value::Object(map) = result {
+        if let Some(Value::Object(map)) = map.get("query") {
+            if let Some(Value::Object(map)) = map.get("results") {
+                for page in map.keys() {
+                    let page = page.replace(' ', "_");
+                    if ak.wikipage(event)? != page {
+                        log::debug!("{page:?}, {:?}", ak.wikipage(event)?);
+                        let token = api.get_edit_token().await?;
+                        let parameters = api.params_into(&[
+                            ("action", "delete"),
+                            ("title", &page),
+                            ("reason", AKSYNC_DELETE_SUMMARY),
+                            ("bot", "true"),
+                            ("token", &token),
+                        ]);
+                        log::debug!("API request:\n{parameters:#?}");
+                        log::info!("Deleting obsolete page {page}");
+                        let result = api.post_query_api_json(&parameters).await?;
+
+                        if let Value::Object(map) = result {
+                            if let Some(Value::Object(err)) = map.get("error") {
+                                bail!(
+                                    "got error {}: {}",
+                                    err.get("code")
+                                        .unwrap_or(&Value::String("<unknown>".to_string()))
+                                        .to_string(),
+                                    err.get("info")
+                                        .unwrap_or(&Value::String(Default::default()))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn update_ak(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
+    delete_old_pages(api, event, ak).await?;
+
     let token = api.get_edit_token().await?;
     let parameters = api.params_into(&[
         ("action", "edit"),
