@@ -5,7 +5,7 @@
 
 pub mod aktool {
     use serde::{Deserialize, Serialize};
-    use std::collections::HashSet;
+    use std::{collections::HashSet, fmt::Display};
 
     pub(crate) const DEFAULT_SLOT_IN_HOURS: f64 = 1.0;
 
@@ -26,9 +26,21 @@ pub mod aktool {
     #[serde(transparent)]
     pub struct EventId(u64);
 
+    impl Display for EventId {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
     pub struct AKId(u64);
+
+    impl Display for AKId {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
 
     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
     #[serde(transparent)]
@@ -367,6 +379,7 @@ pub struct AK {
 
     koma: bool,
     event: EventId,
+    id: AKId,
 }
 
 impl AK {
@@ -405,6 +418,7 @@ impl AK {
 
             koma,
             event: ak.event,
+            id: ak.id,
         }
     }
 
@@ -488,6 +502,9 @@ impl Display for AK {
         if !self.result.is_empty() {
             attribute!("Ergebnis" => self.format_result(self.event));
         }
+
+        attribute!("Event" => self.event);
+        attribute!("ID" => self.id);
 
         writeln!(f, "}}}}")
     }
