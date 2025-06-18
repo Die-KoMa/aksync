@@ -430,7 +430,10 @@ impl AK {
         Ok(format!(
             "{}/{}",
             wikipage(event)?,
-            self.short_name.replace(' ', "_")
+            self.short_name
+                .replace(' ', "_")
+                .replace('[', "(")
+                .replace(']', ")")
         ))
     }
 
