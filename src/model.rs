@@ -350,12 +350,11 @@ impl From<aktool::Owner> for Owner {
 
 impl Display for Owner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let label = match &self.institution {
-            None => escape(&self.name),
-            Some(institution) => format!("{} ({})", escape(&self.name), escape(institution)),
-        };
-
-        write!(f, "{}", format_link(label, &self.link))
+        let link = format_link(escape(&self.name), &self.link);
+        match &self.institution {
+            None => write!(f, "{link}"),
+            Some(institution) => write!(f, "{link} ({})", escape(institution)),
+        }
     }
 }
 
