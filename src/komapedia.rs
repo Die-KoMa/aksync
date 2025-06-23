@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-use std::{env, fs::read_to_string};
+use std::{collections::HashSet, env, fs::read_to_string};
 
 use anyhow::{Result, anyhow, bail};
 use mediawiki::Api;
@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::{
     AKSYNC_USER_AGENT,
-    model::{AK, Event, EventId, aktool::EVENT_KOMA92},
+    model::{AK, AKId, Event, EventId, aktool::EVENT_KOMA92},
 };
 
 const KOMAPEDIA_DOMAINS: &[&str] = &[
@@ -83,7 +83,80 @@ pub(crate) fn wikipage(event: EventId) -> Result<String> {
         .ok_or(anyhow!("unknown event {event:?}"))
 }
 
-async fn delete_old_pages(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
+async fn delete_old_pages(api: &mut Api, id: EventId, event: &Event) -> Result<()> {
+    log::info!("Checking for AKs deleted from aktool");
+    let parameters = api.params_into(&[
+        ("action", "ask"),
+        ("query", &AK::semantic_query_all_aks(id)),
+        ("formatversion", "2"),
+    ]);
+
+    log::debug!("API request:\n{parameters:#?}");
+
+    let result = api.get_query_api_json(&parameters).await?;
+    log::debug!("{result:#?}");
+    let aks = event.aks().map(|(id, _)| *id).collect::<HashSet<_>>();
+
+    if let Value::Object(map) = result {
+        if let Some(Value::Object(map)) = map.get("query") {
+            if let Some(Value::Object(map)) = map.get("results") {
+                for (page, values) in map.iter() {
+                    if let Some(Value::Object(map)) = values.get("printouts") {
+                        if let Some(Value::Array(list)) = map.get("Aktool id") {
+                            let ak_ids = list
+                                .iter()
+                                .filter_map(|value| {
+                                    if let Value::Number(id) = value {
+                                        id.as_u64().map(AKId::new)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<HashSet<_>>();
+
+                            if ak_ids.is_disjoint(&aks) {
+                                log::debug!("obsolete AK {page:?}");
+                                let token = api.get_edit_token().await?;
+                                let parameters = api.params_into(&[
+                                    ("action", "delete"),
+                                    ("title", page),
+                                    ("reason", AKSYNC_DELETE_SUMMARY),
+                                    ("bot", "true"),
+                                    ("token", &token),
+                                ]);
+                                log::debug!("API request:\n{parameters:#?}");
+                                log::info!("Deleting obsolete page {page}");
+                                let result = api.post_query_api_json(&parameters).await?;
+
+                                if let Value::Object(map) = result {
+                                    if let Some(Value::Object(err)) = map.get("error") {
+                                        let code = err
+                                            .get("code")
+                                            .unwrap_or(&Value::String("<unknown>".to_string()))
+                                            .to_string();
+
+                                        // page may have already been deleted, don't bail in that case
+                                        if code != "missingtitle" {
+                                            bail!(
+                                                "got error {code}: {}",
+                                                err.get("info")
+                                                    .unwrap_or(&Value::String(Default::default()))
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn delete_old_pages_for_ak(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
     let parameters = api.params_into(&[
         ("action", "ask"),
         ("query", &ak.semantic_query(event)),
@@ -135,7 +208,7 @@ async fn delete_old_pages(api: &mut Api, event: EventId, ak: &AK) -> Result<()> 
 }
 
 pub(crate) async fn update_ak(api: &mut Api, event: EventId, ak: &AK) -> Result<()> {
-    delete_old_pages(api, event, ak).await?;
+    delete_old_pages_for_ak(api, event, ak).await?;
 
     let token = api.get_edit_token().await?;
     let parameters = api.params_into(&[
@@ -180,6 +253,8 @@ pub(crate) async fn update_event(id: EventId, event: &Event) -> Result<()> {
             update_ak(&mut api, id, ak).await?;
         }
     }
+
+    delete_old_pages(&mut api, id, event).await?;
 
     Ok(())
 }

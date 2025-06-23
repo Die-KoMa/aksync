@@ -36,6 +36,12 @@ pub mod aktool {
     #[serde(transparent)]
     pub struct AKId(u64);
 
+    impl AKId {
+        pub(crate) fn new(id: u64) -> Self {
+            Self(id)
+        }
+    }
+
     impl Display for AKId {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.0)
@@ -442,6 +448,10 @@ impl AK {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(crate) fn semantic_query_all_aks(event: EventId) -> String {
+        format!("[[Aktool event::{event}]]\n|?Aktool id|limit=1312")
     }
 
     pub(crate) fn semantic_query(&self, event: EventId) -> String {
